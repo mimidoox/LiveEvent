@@ -1,0 +1,56 @@
+version: '3'
+
+networks:
+  my_network:
+    driver: bridge
+
+services:
+
+  mysql-database:
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: ""
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: service_reservation
+    ports:
+      - "3306:3306"
+    networks:
+      - my_network
+
+  event-service:
+    image: openjdk:17
+    build:
+      context: ./microservice-event-spring
+      dockerfile: Dockerfile
+    ports:
+      - "6661:6661"
+    command: ["java", "-jar", "/app/Event-0.0.1-SNAPSHOT.jar"]
+    volumes:
+      - ./microservice-event-spring/target:/app
+    environment:
+      - "SPRING_DATASOURCE_URL=jdbc:mysql://mysql-database:3306/service_event?createDatabaseIfNotExist=true&serverTimezone=UTC"
+      - "EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://0.0.0.0:8761/eureka"
+      - "SPRING_PROFILES_ACTIVE=eureka"
+    depends_on:
+      - mysql-database
+    networks:
+      - my_network
+
+  reservation-service:
+    image: openjdk:17
+    ports:
+      - "6662:6662"
+    build:
+      context: ./microserice-reservation-spring
+      dockerfile: Dockerfile
+    command: ["java", "-jar", "/app/Reservation-0.0.1-SNAPSHOT.jar"]
+    volumes:
+      - ./microserice-reservation-spring/target:/app
+    environment:
+      - "SPRING_DATASOURCE_URL=jdbc:mysql://mysql-database:3306/service_event?createDatabaseIfNotExist=true&serverTimezone=UTC"
+      - "EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://0.0.0.0:8761/eureka"
+      - "SPRING_PROFILES_ACTIVE=eureka"
+    depends_on:
+      - mysql-database
+    networks:
+      - my_network
